@@ -1,0 +1,593 @@
+from typing import Dict, List
+from datamodel import OrderDepth, TradingState, Order
+from statistics import mean, stdev
+
+
+class Trader:
+    def __init__(self):
+        self.pearls = []
+        self.bananas = []
+        self.coconuts = []
+        self.pina_coladas = []
+        self.mayberries = []
+        self.diving_gear = []
+        self.dolphin_sightings = []
+
+    def add_pearls(self, value):
+        if len(self.pearls) < 100:
+            self.pearls.append(value)
+        if len(self.pearls) >= 100:
+            self.pearls.pop(0)
+            self.pearls.append(value)
+
+    def add_bananas(self, value):
+        if len(self.bananas) < 100:
+            self.bananas.append(value)
+        if len(self.bananas) >= 100:
+            self.bananas.pop(0)
+            self.bananas.append(value)
+
+    def add_coconuts(self, value):
+        if len(self.coconuts) < 100:
+            self.coconuts.append(value)
+        if len(self.coconuts) >= 100:
+            self.coconuts.pop(0)
+            self.coconuts.append(value)
+
+    def add_pina_coladas(self, value):
+        if len(self.pina_coladas) < 100:
+            self.pina_coladas.append(value)
+        if len(self.pina_coladas) >= 100:
+            self.pina_coladas.pop(0)
+            self.pina_coladas.append(value)
+
+    def add_mayberries(self, value):
+        if len(self.mayberries) < 80:
+            self.mayberries.append(value)
+        if len(self.mayberries) >= 80:
+            self.mayberries.pop(0)
+            self.mayberries.append(value)
+
+    def add_diving_gear(self, value):
+        if len(self.diving_gear) < 80:
+            self.diving_gear.append(value)
+        if len(self.diving_gear) >= 80:
+            self.diving_gear.pop(0)
+            self.diving_gear.append(value)
+
+    def add_dolphin_sightings(self, value):
+        if len(self.dolphin_sightings) < 100:
+            self.dolphin_sightings.append(value)
+        if len(self.dolphin_sightings) >= 100:
+            self.dolphin_sightings.pop(0)
+            self.dolphin_sightings.append(value)
+
+    def run(self, state: TradingState) -> Dict[str, List[Order]]:
+        """
+        Only method required. It takes all buy and sell orders for all symbols as an input,
+        and outputs a list of orders to be sent
+        """
+        # Initialize the method output dict as an empty dict
+        result = {}
+        orders_coconuts: list[Order] = []
+        orders_pina_coladas: list[Order] = []
+        order_depth_coconuts: OrderDepth = state.order_depths["COCONUTS"]
+        order_depth_pina_coladas: OrderDepth = state.order_depths["PINA_COLADAS"]
+        order_depth_mayberries: OrderDepth = state.order_depths["BERRIES"]
+        order_depth_diving_gear: OrderDepth = state.order_depths["DIVING_GEAR"]
+        ratio_arr = []
+        zscore = 0
+
+        # get position size
+        pearls_pos = state.position.get("PEARLS", 0)
+        bananas_pos = state.position.get("BANANAS", 0)
+        coconuts_pos = state.position.get("COCONUTS", 0)
+        pina_coladas_pos = state.position.get("PINA_COLADAS", 0)
+        mayberries_pos = state.position.get("BERRIES", 0)
+        diving_gear_pos = state.position.get("DIVING_GEAR", 0)
+        baguette_pos = state.position.get("BAGUETTE", 0)
+        dip_pos = state.position.get("DIP", 0)
+        uk_pos = state.position.get("UKULELE", 0)
+        pic_pos = state.position.get("PICNIC_BASKET", 0)
+
+        acceptable_price_coconuts = (sum(order_depth_coconuts.sell_orders.keys()) + sum(
+            order_depth_coconuts.buy_orders.keys())) / (
+                                            len(order_depth_coconuts.buy_orders.keys()) + len(
+                                        order_depth_coconuts.sell_orders.keys()))
+        acceptable_price_pina_coladas = (sum(order_depth_pina_coladas.sell_orders.keys()) + sum(
+            order_depth_pina_coladas.buy_orders.keys())) / (
+                                                len(order_depth_pina_coladas.buy_orders.keys()) + len(
+                                            order_depth_pina_coladas.sell_orders.keys()))
+
+        self.add_coconuts(acceptable_price_coconuts)
+        self.add_pina_coladas(acceptable_price_pina_coladas)
+
+        # If enough data then calculate the z score
+        if len(self.coconuts) == 100 and len(self.pina_coladas) == 100:
+            for i in range(len(self.coconuts)):
+                ratio_arr.append(self.coconuts[i] / self.pina_coladas[i])
+            ratios_mavg5 = mean(ratio_arr[70:])
+            ratios_mavg60 = mean(ratio_arr)
+            ratios_stdev = stdev(ratio_arr)
+            zscore = (ratios_mavg5 - ratios_mavg60) / ratios_stdev
+
+        if zscore > -1:
+            # Buy coconuts and sell pina coladas
+            if len(order_depth_coconuts.sell_orders) > 0:
+                best_ask = self.coconuts[-1]
+                best_ask_vol = -60
+                if abs(best_ask_vol) > (600 - coconuts_pos):
+                    best_ask_vol = -(600 - coconuts_pos)
+                orders_coconuts.append(Order("COCONUTS", best_ask, -best_ask_vol))
+
+            if len(order_depth_pina_coladas.buy_orders) != 0:
+                best_bid = self.pina_coladas[-1]
+                best_bid_vol = 30
+                if best_bid_vol > 300 + pina_coladas_pos:
+                    best_bid_vol = 300 + pina_coladas_pos
+                orders_pina_coladas.append(Order("PINA_COLADAS", best_bid, -best_bid_vol))
+
+        elif zscore > 1:
+            # Sell coconuts and buy pina coladas
+            if len(order_depth_pina_coladas.sell_orders) > 0:
+                best_ask = self.pina_coladas[-1]
+                best_ask_vol = -30
+                if abs(best_ask_vol) > (300 - pina_coladas_pos):
+                    best_ask_vol = -(300 - pina_coladas_pos)
+                orders_pina_coladas.append(Order("PINA_COLADAS", best_ask, -best_ask_vol))
+
+            if len(order_depth_coconuts.buy_orders) != 0:
+                best_bid = self.coconuts[-1]
+                best_bid_vol = 60
+                if best_bid_vol > 600 + coconuts_pos:
+                    best_bid_vol = 600 + coconuts_pos
+                orders_coconuts.append(Order("COCONUTS", best_bid, -best_bid_vol))
+
+        elif abs(zscore) < 0.75:
+            # Close position if returned to normal
+            if coconuts_pos > 0:
+                # sell coconuts
+                best_bid = self.coconuts[-1]
+                best_bid_vol = coconuts_pos
+                orders_coconuts.append(Order("COCONUTS", best_bid, -best_bid_vol))
+            elif coconuts_pos < 0:
+                # buy coconuts
+                best_ask = self.coconuts[-1]
+                best_ask_vol = coconuts_pos
+                orders_coconuts.append(Order("COCONUTS", best_ask, -best_ask_vol))
+
+            if pina_coladas_pos > 0:
+                # sell pina coladas
+                best_bid = self.pina_coladas[-1]
+                best_bid_vol = pina_coladas_pos
+                orders_pina_coladas.append(Order("PINA_COLADAS", best_bid, -best_bid_vol))
+            elif pina_coladas_pos < 0:
+                # buy pina coladas
+                best_ask = self.pina_coladas[-1]
+                best_ask_vol = pina_coladas_pos
+                orders_pina_coladas.append(Order("PINA_COLADAS", best_ask, -best_ask_vol))
+
+        result["COCONUTS"] = orders_coconuts
+        result["PINA_COLADAS"] = orders_pina_coladas
+
+        # Market make with the less volatile products where it is harder to profit off price movement - make money
+        # off the spread
+        for product in state.order_depths.keys():
+
+            # Check if the current product is the 'PEARLS' product, only then run the order logic
+            if product == 'PEARLS':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the PEARLS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (20 - pearls_pos):
+                        best_ask_volume = -(20 - pearls_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 20 + pearls_pos:
+                        best_bid_volume = 20 + pearls_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+                # Return the dict of orders
+                # These possibly contain buy or sell orders for PEARLS
+                # Depending on the logic above
+
+            if product == 'BANANAS':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the BANANAS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (20 - bananas_pos):
+                        best_ask_volume = -(20 - bananas_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 20 + bananas_pos:
+                        best_bid_volume = 20 + bananas_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+            # Check if the current product is the 'PEARLS' product, only then run the order logic
+            if product == 'BERRIES':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the PEARLS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (250 - mayberries_pos):
+                        best_ask_volume = -(250 - mayberries_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 250 + mayberries_pos:
+                        best_bid_volume = 250 + mayberries_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+                # Return the dict of orders
+                # These possibly contain buy or sell orders for PEARLS
+                # Depending on the logic above
+
+            if product == 'DIVING_GEAR':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the BANANAS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (50 - diving_gear_pos):
+                        best_ask_volume = -(50 - diving_gear_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 50 + diving_gear_pos:
+                        best_bid_volume = 50 + diving_gear_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+            # Check if the current product is the 'PEARLS' product, only then run the order logic
+            if product == 'BAGUETTE':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the PEARLS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (150 - baguette_pos):
+                        best_ask_volume = -(150 - baguette_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 150 + baguette_pos:
+                        best_bid_volume = 150 + baguette_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+                # Return the dict of orders
+                # These possibly contain buy or sell orders for PEARLS
+                # Depending on the logic above
+
+            if product == 'DIP':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the BANANAS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (300 - dip_pos):
+                        best_ask_volume = -(300 - dip_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 300 + dip_pos:
+                        best_bid_volume = 300 + dip_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+            # Check if the current product is the 'PEARLS' product, only then run the order logic
+            if product == 'UKULELE':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the PEARLS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (70 - uk_pos):
+                        best_ask_volume = -(70 - uk_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 70 + uk_pos:
+                        best_bid_volume = 70 + uk_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+                # Return the dict of orders
+                # These possibly contain buy or sell orders for PEARLS
+                # Depending on the logic above
+
+            if product == 'PICNIC_BASKET':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the BANANAS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (70 - pic_pos):
+                        best_ask_volume = -(70 - pic_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 70 + pic_pos:
+                        best_bid_volume = 70 + pic_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+        return result
