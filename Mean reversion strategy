@@ -1,0 +1,352 @@
+from typing import Dict, List
+from datamodel import OrderDepth, TradingState, Order
+from statistics import mean
+
+
+class Trader:
+    def __init__(self):
+        self.pearls = []
+        self.bananas = []
+        self.coconuts = []
+        self.pina_coladas = []
+        self.mayberries = []
+        self.diving_gear = []
+        self.dolphin_sightings = []
+
+    def add_pearls(self, value):
+        if len(self.pearls) < 100:
+            self.pearls.append(value)
+        if len(self.pearls) >= 100:
+            self.pearls.pop(0)
+            self.pearls.append(value)
+
+    def add_bananas(self, value):
+        if len(self.bananas) < 100:
+            self.bananas.append(value)
+        if len(self.bananas) >= 100:
+            self.bananas.pop(0)
+            self.bananas.append(value)
+
+    def add_coconuts(self, value):
+        if len(self.coconuts) < 50:
+            self.coconuts.append(value)
+        if len(self.coconuts) >= 50:
+            self.coconuts.pop(0)
+            self.coconuts.append(value)
+
+    def add_pina_coladas(self, value):
+        if len(self.pina_coladas) < 90:
+            self.pina_coladas.append(value)
+        if len(self.pina_coladas) >= 90:
+            self.pina_coladas.pop(0)
+            self.pina_coladas.append(value)
+
+    def add_mayberries(self, value):
+        if len(self.mayberries) < 100:
+            self.mayberries.append(value)
+        if len(self.mayberries) >= 100:
+            self.mayberries.pop(0)
+            self.mayberries.append(value)
+
+    def add_diving_gear(self, value):
+        if len(self.diving_gear) < 100:
+            self.diving_gear.append(value)
+        if len(self.diving_gear) >= 100:
+            self.diving_gear.pop(0)
+            self.diving_gear.append(value)
+
+    def add_dolphin_sightings(self, value):
+        if len(self.dolphin_sightings) < 100:
+            self.dolphin_sightings.append(value)
+        if len(self.dolphin_sightings) >= 100:
+            self.dolphin_sightings.pop(0)
+            self.dolphin_sightings.append(value)
+
+    def run(self, state: TradingState) -> Dict[str, List[Order]]:
+        """
+        Only method required. It takes all buy and sell orders for all symbols as an input,
+        and outputs a list of orders to be sent
+        """
+        # Initialize the method output dict as an empty dict
+        result = {}
+        orders_coconuts: list[Order] = []
+        orders_pina_coladas: list[Order] = []
+        orders_mayberries: list[Order] = []
+        orders_diving_gear: list[Order] = []
+        order_depth_coconuts: OrderDepth = state.order_depths["COCONUTS"]
+        order_depth_pina_coladas: OrderDepth = state.order_depths["PINA_COLADAS"]
+        order_depth_mayberries: OrderDepth = state.order_depths["BERRIES"]
+        order_depth_diving_gear: OrderDepth = state.order_depths["DIVING_GEAR"]
+
+        # get position size
+        pearls_pos = state.position.get("PEARLS", 0)
+        bananas_pos = state.position.get("BANANAS", 0)
+        coconuts_pos = state.position.get("COCONUTS", 0)
+        pina_coladas_pos = state.position.get("PINA_COLADAS", 0)
+        mayberries_pos = state.position.get("BERRIES", 0)
+        diving_gear_pos = state.position.get("DIVING_GEAR", 0)
+
+        coconuts_sma10 = 0
+        coconuts_sma50 = 0
+        coconuts_pos_arr = []
+        coconuts_neg_arr = []
+        coco_rsi = 0
+
+        pina_sma30 = 0
+        pina_sma100 = 0
+        pina_pos_arr = []
+        pina_neg_arr = []
+        pina_rsi = 0
+
+        may_sma30 = 0
+        may_sma100 = 0
+        may_pos_arr = []
+        may_neg_arr = []
+        may_rsi = 0
+
+        div_sma30 = 0
+        div_sma100 = 0
+        div_pos_arr = []
+        div_neg_arr = []
+        div_rsi = 0
+
+        acceptable_price_coconuts = (sum(order_depth_coconuts.sell_orders.keys()) + sum(
+            order_depth_coconuts.buy_orders.keys())) / (
+                                            len(order_depth_coconuts.buy_orders.keys()) + len(
+                                        order_depth_coconuts.sell_orders.keys()))
+        acceptable_price_pina_coladas = (sum(order_depth_pina_coladas.sell_orders.keys()) + sum(
+            order_depth_pina_coladas.buy_orders.keys())) / (
+                                                len(order_depth_pina_coladas.buy_orders.keys()) + len(
+                                            order_depth_pina_coladas.sell_orders.keys()))
+        acceptable_price_mayberries = (sum(order_depth_mayberries.sell_orders.keys()) + sum(
+            order_depth_mayberries.buy_orders.keys())) / (
+                                              len(order_depth_mayberries.buy_orders.keys()) + len(
+                                          order_depth_mayberries.sell_orders.keys()))
+        acceptable_price_diving_gear = (sum(order_depth_diving_gear.sell_orders.keys()) + sum(
+            order_depth_diving_gear.buy_orders.keys())) / (
+                                               len(order_depth_diving_gear.buy_orders.keys()) + len(
+                                           order_depth_diving_gear.sell_orders.keys()))
+
+        self.add_coconuts(acceptable_price_coconuts)
+        self.add_pina_coladas(acceptable_price_pina_coladas)
+        self.add_mayberries(acceptable_price_mayberries)
+        self.add_diving_gear(acceptable_price_diving_gear)
+
+        # If enough data then calculate the smas and RSI
+        if len(self.coconuts) == 50:
+            for i in range(14):
+                if self.coconuts[-i - 1] - self.coconuts[-i - 2] < 0:
+                    coconuts_neg_arr.append(abs(self.coconuts[-i - 1] - self.coconuts[-i - 2]))
+                elif self.coconuts[-i - 1] - self.coconuts[-i - 2] > 0:
+                    coconuts_pos_arr.append(self.coconuts[-i - 1] - self.coconuts[-i - 2])
+            coconuts_sma10 = mean(self.coconuts[40:])
+            coconuts_sma50 = mean(self.coconuts)
+            coconuts_pos_ma = mean(coconuts_pos_arr)
+            coconuts_neg_ma = mean(coconuts_neg_arr)
+            coco_rs = coconuts_pos_ma / coconuts_neg_ma
+            coco_rsi = 100 - (100 / (1 + coco_rs))
+
+        if len(self.pina_coladas) == 90:
+            for i in range(14):
+                if self.pina_coladas[-i - 1] - self.pina_coladas[-i - 2] < 0:
+                    pina_neg_arr.append(abs(self.pina_coladas[-i - 1] - self.pina_coladas[-i - 2]))
+                elif self.pina_coladas[-i - 1] - self.pina_coladas[-i - 2] > 0:
+                    pina_pos_arr.append(self.pina_coladas[-i - 1] - self.pina_coladas[-i - 2])
+
+            pina_sma30 = mean(self.pina_coladas[60:])
+            pina_sma100 = mean(self.pina_coladas)
+            pina_pos_ma = mean(pina_pos_arr)
+            pina_neg_ma = mean(pina_neg_arr)
+            pina_rsi = pina_pos_ma / pina_neg_ma
+            pina_rsi = 100 - (100 / (1 + pina_rsi))
+
+        if len(self.mayberries) == 100:
+            for i in range(14):
+                if self.mayberries[-i - 1] - self.mayberries[-i - 2] < 0:
+                    may_neg_arr.append(abs(self.mayberries[-i - 1] - self.mayberries[-i - 2]))
+                elif self.mayberries[-i - 1] - self.mayberries[-i - 2] > 0:
+                    may_pos_arr.append(self.mayberries[-i - 1] - self.mayberries[-i - 2])
+                if self.diving_gear[-i - 1] - self.diving_gear[-i - 2] < 0:
+                    div_neg_arr.append(abs(self.diving_gear[-i - 1] - self.diving_gear[-i - 2]))
+                elif self.diving_gear[-i - 1] - self.diving_gear[-i - 2] > 0:
+                    div_pos_arr.append(self.diving_gear[-i - 1] - self.diving_gear[-i - 2])
+
+            may_sma30 = mean(self.mayberries[70:])
+            may_sma100 = mean(self.mayberries)
+            may_pos_ma = mean(may_pos_arr)
+            may_neg_ma = mean(may_neg_arr)
+            may_rsi = may_pos_ma / may_neg_ma
+
+            div_sma30 = mean(self.diving_gear[70:])
+            div_sma100 = mean(self.diving_gear)
+            div_pos_ma = mean(div_pos_arr)
+            div_neg_ma = mean(div_neg_arr)
+            div_rsi = div_pos_ma / div_neg_ma
+
+        if coconuts_sma10 > coconuts_sma50 and coco_rsi < 30:
+            # Buy coconuts
+            if len(order_depth_coconuts.sell_orders) > 0:
+                co_best_ask = min(order_depth_coconuts.sell_orders.keys())
+                co_best_ask_vol = order_depth_coconuts.sell_orders[co_best_ask]
+                orders_coconuts.append(Order("COCONUTS", co_best_ask, -co_best_ask_vol))
+
+        elif coconuts_sma10 < coconuts_sma50 and coco_rsi > 70:
+            # Sell coconuts
+            if len(order_depth_coconuts.buy_orders) != 0:
+                best_bid = max(order_depth_coconuts.buy_orders.keys())
+                best_bid_vol = order_depth_coconuts.buy_orders[best_bid]
+                orders_coconuts.append(Order("COCONUTS", best_bid, -best_bid_vol))
+
+        if pina_sma30 > pina_sma100 and pina_rsi < 30:
+            # Buy pina coladas
+            if len(order_depth_pina_coladas.sell_orders) > 0:
+                best_ask = min(order_depth_pina_coladas.sell_orders.keys())
+                best_ask_vol = order_depth_pina_coladas.sell_orders[best_ask]
+                orders_pina_coladas.append(Order("PINA_COLADAS", best_ask, -best_ask_vol))
+        elif pina_sma30 < pina_sma100 and pina_rsi > 70:
+            # Sell pina coladas
+            if len(order_depth_pina_coladas.buy_orders) != 0:
+                best_bid = max(order_depth_pina_coladas.buy_orders.keys())
+                best_bid_vol = order_depth_pina_coladas.buy_orders[best_bid]
+                orders_pina_coladas.append(Order("PINA_COLADAS", best_bid, -best_bid_vol))
+
+        if may_sma30 > may_sma100 and may_rsi < 30:
+            # Buy mayberries
+            if len(order_depth_mayberries.sell_orders) > 0:
+                best_ask = min(order_depth_mayberries.sell_orders.keys())
+                best_ask_vol = order_depth_mayberries.sell_orders[best_ask]
+                orders_mayberries.append(Order("BERRIES", best_ask, -best_ask_vol))
+        elif may_sma30 < may_sma100 and may_rsi > 70:
+            # Sell mayberries
+            if len(order_depth_mayberries.buy_orders) != 0:
+                best_bid = max(order_depth_mayberries.buy_orders.keys())
+                best_bid_vol = order_depth_mayberries.buy_orders[best_bid]
+                orders_mayberries.append(Order("BERRIES", best_bid, -best_bid_vol))
+
+        if div_sma30 > div_sma100 and div_rsi < 30:
+            # Buy diving gear
+            if len(order_depth_diving_gear.sell_orders) > 0:
+                best_ask = min(order_depth_diving_gear.sell_orders.keys())
+                best_ask_vol = order_depth_diving_gear.sell_orders[best_ask]
+                orders_diving_gear.append(Order("DIVING_GEAR", best_ask, -best_ask_vol))
+        elif div_sma30 < div_sma100 and div_rsi > 70:
+            # Sell diving gear
+            if len(order_depth_diving_gear.buy_orders) != 0:
+                best_bid = max(order_depth_diving_gear.buy_orders.keys())
+                best_bid_vol = order_depth_diving_gear.buy_orders[best_bid]
+                orders_diving_gear.append(Order("DIVING_GEAR", best_bid, -best_bid_vol))
+
+        result["COCONUTS"] = orders_coconuts
+        result["PINA_COLADAS"] = orders_pina_coladas
+        result["BERRIES"] = orders_mayberries
+        result["DIVING_GEAR"] = orders_diving_gear
+
+        # Market make with the less volatile products where it is harder to profit off price movement - make money
+        # off the spread
+        for product in state.order_depths.keys():
+
+            # Check if the current product is the 'PEARLS' product, only then run the order logic
+            if product == 'PEARLS':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the PEARLS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (20 - pearls_pos):
+                        best_ask_volume = -(20 - pearls_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 20 + pearls_pos:
+                        best_bid_volume = 20 + pearls_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+                # Return the dict of orders
+                # These possibly contain buy or sell orders for PEARLS
+                # Depending on the logic above
+
+            if product == 'BANANAS':
+
+                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
+                order_depth: OrderDepth = state.order_depths[product]
+
+                # Initialize the list of Orders to be sent as an empty list
+                orders: list[Order] = []
+                # Define a fair value for the PEARLS.
+                # Note that this value of 1 is just a dummy value, you should likely change it!
+                acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
+                        len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                # If statement checks if there are any SELL orders in the BANANAS market
+                if len(order_depth.sell_orders) > 0:
+
+                    best_ask = min(order_depth.sell_orders.keys())
+                    best_ask_volume = order_depth.sell_orders[best_ask]
+
+                    if abs(best_ask_volume) > (20 - bananas_pos):
+                        best_ask_volume = -(20 - bananas_pos)
+
+                    # Check if the lowest ask (sell order) is lower than the above defined fair value
+                    if best_ask < acceptable_price:
+                        # In case the lowest ask is lower than our fair value,
+                        # This presents an opportunity for us to buy cheaply
+                        # The code below therefore sends a BUY order at the price level of the ask,
+                        # with the same quantity
+                        # We expect this order to trade with the sell order
+                        # print("BUY", str(-best_ask_volume) + "x", best_ask)
+                        orders.append(Order(product, best_ask, -best_ask_volume))
+
+                # The below code block is similar to the one above,
+                # the difference is that it finds the highest bid (buy order)
+                # If the price of the order is higher than the fair value
+                # This is an opportunity to sell at a premium
+                if len(order_depth.buy_orders) != 0:
+                    best_bid = max(order_depth.buy_orders.keys())
+                    best_bid_volume = order_depth.buy_orders[best_bid]
+
+                    if best_bid_volume > 20 + bananas_pos:
+                        best_bid_volume = 20 + bananas_pos
+
+                    if best_bid > acceptable_price:
+                        # print("SELL", str(best_bid_volume) + "x", best_bid)
+                        orders.append(Order(product, best_bid, -best_bid_volume))
+
+                # Add all the above orders to the result dict
+                result[product] = orders
+
+        return result
