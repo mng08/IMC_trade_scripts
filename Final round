@@ -4,6 +4,7 @@ from statistics import mean, stdev
 
 
 class Trader:
+# Create objects to store market data in a dynamic way such that there is not too much delay in algo speed and we are storing required data only. 
     def __init__(self):
         self.pearls = []
         self.bananas = []
@@ -102,6 +103,7 @@ class Trader:
         self.add_coconuts(acceptable_price_coconuts)
         self.add_pina_coladas(acceptable_price_pina_coladas)
 
+        # Pairs trade coconuts and pina coladas having verified relationship for pairs trading
         # If enough data then calculate the z score
         if len(self.coconuts) == 100 and len(self.pina_coladas) == 100:
             for i in range(len(self.coconuts)):
