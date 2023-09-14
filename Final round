@@ -487,20 +487,34 @@ class Trader:
 
                 # Add all the above orders to the result dict
                 result[product] = orders
-
+            
             # Check if the current product is the 'PEARLS' product, only then run the order logic
             if product == 'UKULELE':
 
-                # Retrieve the Order Depth containing all the market BUY and SELL orders for PEARLS
-                order_depth: OrderDepth = state.order_depths[product]
-
-                # Initialize the list of Orders to be sent as an empty list
                 orders: list[Order] = []
+
+                order_depth: OrderDepth = state.order_depths[product]
 
                 # Define a fair value for the PEARLS.
                 # Note that this value of 1 is just a dummy value, you should likely change it!
                 acceptable_price = (sum(order_depth.sell_orders.keys()) + sum(order_depth.buy_orders.keys())) / (
                         len(order_depth.buy_orders.keys()) + len(order_depth.sell_orders.keys()))
+
+                for i in market_trades:
+                    if i.buyer == "Olivia":
+                        price_buy = acceptable_price
+                        quantity_buy = 10
+                        if quantity_buy > 70 - uk_pos:
+                            quantity_buy = 70 - uk_pos
+                        orders.append(Order(product, price_buy, quantity_buy))
+                    if i.seller == "Olivia":
+                        price_sell = acceptable_price
+                        quantity_sell = 10
+                        if quantity_sell > 70 + uk_pos:
+                            quantity_sell = 70 + uk_pos
+                        orders.append(Order(product, price_sell, -quantity_sell))
+
+                result[product] = orders
 
                 # If statement checks if there are any SELL orders in the PEARLS market
                 if len(order_depth.sell_orders) > 0:
